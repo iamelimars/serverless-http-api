@@ -1,0 +1,64 @@
+org: elicodes
+app: http-api
+service: http-api
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  stage: test
+  profile: iamadmin-general
+  runtime: nodejs18.x
+  environment:
+    DYNAMODB_CUSTOMER_TABLE: ${self:service}-customerTable-${sls:stage}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:PutItem"
+        - "dynamodb:Get*"
+        - "dynamodb:Scan*"
+        - "dynamodb:UpdateItem"
+        - "dynamodb:DeleteItem"
+      Resource: arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-customerTable-${sls:stage}
+
+functions:
+  createCustomer:
+    handler: createCustomer.handler
+    events:
+      - httpApi:
+          path: /customer/create
+          method: post
+  postCustomerAddress:
+    handler: postCustomerAddress.handler
+    events:
+      - httpApi:
+          path: /customer/address
+          method: post
+  getCustomers:
+    handler: getCustomers.handler
+    events:
+      - httpApi:
+          path: /customers
+          method: get
+  api:
+    handler: index.handler
+    events:
+      - httpApi:
+          path: /
+          method: get
+resources:
+  Resources:
+    CustomerTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+        BillingMode: PAY_PER_REQUEST
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        TableName: ${self:service}-customerTable-${sls:stage}
